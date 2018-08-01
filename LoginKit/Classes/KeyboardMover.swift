@@ -33,7 +33,10 @@ extension KeyboardMovable where Self: UIViewController {
             return objc_getAssociatedObject(self, &KeyboardMovableKeys.keyboardShowObserver) as? NSObjectProtocol
         }
         set(newValue) {
-            objc_setAssociatedObject(self, &KeyboardMovableKeys.keyboardShowObserver, newValue, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self,
+                                     &KeyboardMovableKeys.keyboardShowObserver,
+                                     newValue,
+                                     objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN)
         }
     }
 
@@ -42,17 +45,20 @@ extension KeyboardMovable where Self: UIViewController {
             return objc_getAssociatedObject(self, &KeyboardMovableKeys.keyboardHideObserver) as? NSObjectProtocol
         }
         set(newValue) {
-            objc_setAssociatedObject(self, &KeyboardMovableKeys.keyboardHideObserver, newValue, objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN)
+            objc_setAssociatedObject(self,
+                                     &KeyboardMovableKeys.keyboardHideObserver,
+                                     newValue,
+                                     objc_AssociationPolicy.OBJC_ASSOCIATION_RETAIN)
         }
     }
 
     func initKeyboardMover() {
-        keyboardShowObserver = notificationCenter.addObserver(forName: NSNotification.Name.UIKeyboardWillShow, object: nil, queue: nil) { notification in
-            self.keyboardWillShow(notification)
-        }
-        keyboardHideObserver =  notificationCenter.addObserver(forName: NSNotification.Name.UIKeyboardWillHide, object: nil, queue: nil) { notification in
-            self.keyboardWillHide(notification)
-        }
+//        keyboardShowObserver = notificationCenter.addObserver(forName: NSNotification.Name.UIKeyboardWillShow, object: nil, queue: nil) { notification in
+//            self.keyboardWillShow(notification)
+//        }
+//        keyboardHideObserver =  notificationCenter.addObserver(forName: NSNotification.Name.UIKeyboardWillHide, object: nil, queue: nil) { notification in
+//            self.keyboardWillHide(notification)
+//        }
     }
 
     func destroyKeyboardMover() {

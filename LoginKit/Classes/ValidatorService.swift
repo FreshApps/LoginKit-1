@@ -8,21 +8,26 @@
 
 import Foundation
 import Validator
+import UIKit
 
 enum ValidationError: String, Error {
-
+    
     case invalidName = "Invalid name"
     case invalidEmail = "Invalid email address"
     case passwordLength = "Must be at least 8 characters"
     case passwordNotEqual = "Password does not match"
-
+    case birthDayEmpty = "Fill in your birthday"
+    
     var message: String {
-        return self.rawValue
+        return NSLocalizedString(self.rawValue, comment: "")
     }
     
 }
 
 public struct FullNameRule: ValidationRule {
+
+    weak var configurationSource: ConfigurationSource?
+    
 
     public typealias InputType = String
 
@@ -53,7 +58,6 @@ public struct FullNameRule: ValidationRule {
 
         return true
     }
-
 }
 
 struct ValidationService {
@@ -69,6 +73,12 @@ struct ValidationService {
         passwordRules.add(rule: ValidationRuleLength(min: 8, error: ValidationError.passwordLength))
         return passwordRules
     }
+    
+    static var birthRules: ValidationRuleSet<String> {
+        var birthRules = ValidationRuleSet<String>()
+        birthRules.add(rule: ValidationRuleLength(min: 9, error: ValidationError.birthDayEmpty))
+        return birthRules
+    }
 
     static var nameRules: ValidationRuleSet<String> {
         var nameRules = ValidationRuleSet<String>()
@@ -77,7 +87,6 @@ struct ValidationService {
     }
 
     // MARK: - Private
-
     private static var emailRule: ValidationRulePattern {
         return ValidationRulePattern(pattern: EmailValidationPattern.standard,
                                      error: ValidationError.invalidEmail)

@@ -24,9 +24,13 @@ public enum FacebookResult {
 public struct FacebookProfile {
 
     public let facebookId: String
+
     public let facebookToken: String
+
     public let firstName: String
+
     public let lastName: String
+    
     public let email: String
 
     public var fullName: String {
@@ -39,8 +43,7 @@ public class FacebookService {
 
     let loginManager: FBSDKLoginManager = {
         let manager = FBSDKLoginManager()
-        // manager.loginBehavior = .systemAccount
-		// manager.logOut()
+        manager.loginBehavior = .systemAccount
         return manager
     }()
 

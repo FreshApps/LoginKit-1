@@ -9,22 +9,21 @@
 import UIKit
 import Validator
 
-public protocol PasswordViewControllerDelegate: class {
+protocol PasswordViewControllerDelegate: class {
 
     func didSelectRecover(_ viewController: UIViewController, email: String)
+
     func passwordDidSelectBack(_ viewController: UIViewController)
 
 }
 
-open class PasswordViewController: UIViewController, BackgroundMovable, KeyboardMovable {
+class PasswordViewController: UIViewController, BackgroundMovable, KeyboardMovable {
 
     // MARK: - Properties
 
     weak var delegate: PasswordViewControllerDelegate?
 
-	lazy var configuration: ConfigurationSource = {
-		return DefaultConfiguration()
-	}()
+    weak var configurationSource: ConfigurationSource?
 
     var recoverAttempted = false
 
@@ -44,50 +43,60 @@ open class PasswordViewController: UIViewController, BackgroundMovable, Keyboard
 
     // MARK: Outlet's
 
-    @IBOutlet weak var emailTextField: SkyFloatingLabelTextField!
+    @IBOutlet weak var emailTextField: UITextField!
+
     @IBOutlet weak var recoverButton: Buttn!
+    @IBOutlet weak var backButton: Buttn!
+
     @IBOutlet weak var logoImageView: UIImageView!
+
     @IBOutlet weak var backgroundImageView: GradientImageView!
+    @IBOutlet weak var textfieldCenterLayoutConstraint: NSLayoutConstraint!
 
     // MARK: - UIViewController
 
-	override open func viewDidLoad() {
+    override func viewDidLoad() {
         super.viewDidLoad()
-		_ = loadFonts
         initBackgroundMover()
         customizeAppearance()
         setupValidation()
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillShowNotification(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillHideNotification(_:)), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
     }
 
-	override open func loadView() {
-        self.view = viewFromNib(optionalName: "PasswordViewController")
+    override func loadView() {
+        self.view = viewFromNib()
     }
 
-	override open func didReceiveMemoryWarning() {
+    override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
 
-	override open var preferredStatusBarStyle: UIStatusBarStyle {
+    override var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
     }
 
     // MARK: - Setup
 
     func customizeAppearance() {
-        applyConfiguration()
+        configureFromSource()
         setupFonts()
+        
+        
     }
 
-    func applyConfiguration() {
-        backgroundImageView.image = configuration.backgroundImage
-		backgroundImageView.gradientType = configuration.backgroundImageGradient ? .normalGradient : .none
-        backgroundImageView.gradientColor = configuration.tintColor
-        backgroundImageView.fadeColor = configuration.tintColor
-        logoImageView.image = configuration.secondaryLogoImage
+    func configureFromSource() {
+        guard let config = configurationSource else {
+            return
+        }
 
-        emailTextField.placeholder = configuration.emailPlaceholder
-        emailTextField.errorColor = configuration.errorTintColor
-        recoverButton.setTitle(configuration.recoverPasswordButtonText, for: .normal)
+        backgroundImageView.image = config.backgroundImage
+        logoImageView.image = config.secondaryLogoImage
+
+        emailTextField.placeholder = config.emailPlaceholder
+        //emailTextField.errorColor = config.errorTintColor
+        recoverButton.setTitle(config.recoverPasswordButtonText, for: .normal)
     }
 
     func setupFonts() {
@@ -120,7 +129,7 @@ open class PasswordViewController: UIViewController, BackgroundMovable, Keyboard
 extension PasswordViewController {
 
     func setupValidation() {
-        setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
+        //setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
     }
 
     func setupValidationOn(field: SkyFloatingLabelTextField, rules: ValidationRuleSet<String>) {
@@ -152,12 +161,34 @@ extension PasswordViewController {
         let result = emailTextField.validate()
         switch result {
         case .valid:
-            emailTextField.errorMessage = nil
+            //emailTextField.errorMessage = nil
             success()
         case .invalid(let errors):
             if let errors = errors as? [ValidationError] {
-                emailTextField.errorMessage = errors.first?.message
+                //emailTextField.errorMessage = errors.first?.message
             }
+        }
+    }
+    
+    @objc func keyboardWillShowNotification(_ notification: Notification) {
+        let keyboardEndFrame = ((notification as NSNotification).userInfo![UIKeyboardFrameEndUserInfoKey] as! NSValue).cgRectValue
+
+        let convertedKeyboardEndFrame = view.convert(keyboardEndFrame, from: view.window)
+
+        
+        textfieldCenterLayoutConstraint.constant -= 120
+        UIView.animate(withDuration: 1.0) {
+            self.logoImageView.alpha = 0.0
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc func keyboardWillHideNotification(_ notification: Notification) {
+        textfieldCenterLayoutConstraint.constant = 0
+        
+        UIView.animate(withDuration: 1.0) {
+            self.logoImageView.alpha = 1.0
+            self.view.layoutIfNeeded()
         }
     }
 
@@ -167,24 +198,40 @@ extension PasswordViewController {
 
 extension PasswordViewController: UITextFieldDelegate {
 
-	public func textFieldDidBeginEditing(_ textField: UITextField) {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
         selectedField = textField
+        
+        addAccessoryView(selectedField!)
     }
 
-    public func textFieldDidEndEditing(_ textField: UITextField) {
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        selectedField = nil
+    }
+    
+    func addAccessoryView(_ textField: UITextField) -> Void {
+        let toolBar = UIToolbar(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 44))
+        let doneButton = UIBarButtonItem(title: NSLocalizedString("Close", comment: ""), style: .done, target: self, action: #selector(PasswordViewController.doneButtonTapped(button:)))
+        let flexItem = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
+        toolBar.items = [flexItem, doneButton]
+        toolBar.tintColor = .black
+        textField.inputAccessoryView = toolBar
+    }
+    
+    @objc func doneButtonTapped(button:UIBarButtonItem) -> Void {
+        // do you stuff with done here
+        selectedField?.resignFirstResponder()
         selectedField = nil
     }
 
-    public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-		textField.resignFirstResponder()
-
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         let nextTag = textField.tag + 1
         let nextResponder = view.viewWithTag(nextTag) as UIResponder!
 
         if nextResponder != nil {
             nextResponder?.becomeFirstResponder()
         } else {
-            didSelectRecover(self)
+            textField.resignFirstResponder()
+            //didSelectRecover(self)
         }
 
         return false

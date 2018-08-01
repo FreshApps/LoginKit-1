@@ -9,22 +9,23 @@
 import UIKit
 import Validator
 
-public protocol SignupViewControllerDelegate: class {
+protocol SignupViewControllerDelegate: class {
 
-    func didSelectSignup(_ viewController: UIViewController, email: String, name: String, password: String)
+    func didSelectSignup(_ viewController: UIViewController, email: String, name: String, password: String, gender: String, birthday: String)
+
     func signupDidSelectBack(_ viewController: UIViewController)
-
+    
+    func didPressedTerms(_ viewController: UIViewController)
+    func didPressedPrivacy(_ viewController: UIViewController)
 }
 
-open class SignupViewController: UIViewController, KeyboardMovable, BackgroundMovable {
+class SignupViewController: UIViewController, KeyboardMovable, BackgroundMovable, UITextViewDelegate {
 
     // MARK: - Properties
 
     weak var delegate: SignupViewControllerDelegate?
 
-	lazy var configuration: ConfigurationSource = {
-		return DefaultConfiguration()
-	}()
+    weak var configurationSource: ConfigurationSource?
 
     var signupAttempted = false
 
@@ -51,75 +52,112 @@ open class SignupViewController: UIViewController, KeyboardMovable, BackgroundMo
     // MARK: Outlet's
 
     @IBOutlet var fields: [SkyFloatingLabelTextField]!
-    @IBOutlet weak var emailTextField: SkyFloatingLabelTextField!
-    @IBOutlet weak var nameTextField: SkyFloatingLabelTextField!
-    @IBOutlet weak var passwordTextField: SkyFloatingLabelTextField!
-    @IBOutlet weak var repeatPasswordTextField: SkyFloatingLabelTextField!
-    @IBOutlet weak var backgroundImageView: GradientImageView!
-    @IBOutlet weak var logoImageView: UIImageView!
-    @IBOutlet weak var signupButton: Buttn!
 
+    @IBOutlet weak var emailTextField: UITextField!
+
+    @IBOutlet weak var nameTextField: UITextField!
+
+    @IBOutlet weak var passwordTextField: UITextField!
+
+    @IBOutlet weak var repeatPasswordTextField: UITextField!
+
+    @IBOutlet weak var backgroundImageView: GradientImageView!
+
+    @IBOutlet weak var logoImageView: UIImageView!
+
+    @IBOutlet weak var signupButton: Buttn!
+    
+    @IBOutlet weak var genderSwitch: UISegmentedControl!
+    
+    @IBOutlet weak var textSignup: UITextView!
+
+    @IBOutlet weak var btnTermsOfUse: UIButton!
     // MARK: - UIViewController
 
-	override open func viewDidLoad() {
+    @IBOutlet weak var pickerView: UIView!
+    @IBOutlet weak var datePicker: UIDatePicker!
+    @IBOutlet weak var birthDayTextField: SkyFloatingLabelTextField!
+    
+    @IBOutlet weak var lblTerms: UILabel!
+    @IBOutlet weak var btnPrivacyPolicy: UIButton!
+    @IBOutlet weak var stackViewCenterConstraint : NSLayoutConstraint!
+    @IBOutlet weak var signupStackView: UIStackView!
+    
+    override func viewDidLoad() {
         super.viewDidLoad()
-		_ = loadFonts
+
         setupValidation()
         initKeyboardMover()
         initBackgroundMover()
         customizeAppearance()
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillShowNotification(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillHideNotification(_:)), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
     }
 
-	override open func loadView() {
-        self.view = viewFromNib(optionalName: "SignupViewController")
+    override func loadView() {
+        self.view = viewFromNib()
     }
 
-	override open func didReceiveMemoryWarning() {
+    override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
 
-	override open func viewWillDisappear(_ animated: Bool) {
+    override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         destroyKeyboardMover()
     }
 
-	override open var preferredStatusBarStyle: UIStatusBarStyle {
+    override var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
     }
 
     // MARK: - Setup
 
     func customizeAppearance() {
-        applyConfiguration()
+        configureFromSource()
         setupFonts()
     }
     
-    func applyConfiguration() {
-        view.backgroundColor = configuration.tintColor
-        signupButton.setTitle(configuration.signupButtonText, for: .normal)
+    func configureFromSource() {
+        guard let config = configurationSource else {
+            return
+        }
+        
+        
+        view.backgroundColor = config.tintColor
+        signupButton.setTitle(config.signupButtonText, for: .normal)
 
-        backgroundImageView.image = configuration.backgroundImage
-		backgroundImageView.gradientType = configuration.backgroundImageGradient ? .normalGradient : .none
-        backgroundImageView.gradientColor = configuration.tintColor
-        backgroundImageView.fadeColor = configuration.tintColor
-        logoImageView.image = configuration.secondaryLogoImage
+        backgroundImageView.image = config.backgroundImage
+        logoImageView.image = config.secondaryLogoImage
 
-        emailTextField.placeholder = configuration.emailPlaceholder
-        emailTextField.errorColor = configuration.errorTintColor
-        nameTextField.placeholder = configuration.namePlaceholder
-        nameTextField.errorColor = configuration.errorTintColor
-        passwordTextField.placeholder = configuration.passwordPlaceholder
-        passwordTextField.errorColor = configuration.errorTintColor
-        repeatPasswordTextField.placeholder = configuration.repeatPasswordPlaceholder
-        repeatPasswordTextField.errorColor = configuration.errorTintColor
+        emailTextField.placeholder = config.emailPlaceholder
+        //emailTextField.errorColor = config.errorTintColor
+        //nameTextField.placeholder = config.namePlaceholder
+        //nameTextField.errorColor = config.errorTintColor
+        passwordTextField.placeholder = config.passwordPlaceholder
+        //passwordTextField.errorColor = config.errorTintColor
+        repeatPasswordTextField.placeholder = config.repeatPasswordPlaceholder
+        //repeatPasswordTextField.errorColor = config.errorTintColor
+        //birthDayTextField.placeholder = config.birthdayPlaceholder
+        //birthDayTextField.errorColor = config.errorTintColor
+        
+        //birthDayTextField.selectedTitle = NSLocalizedString("Birthday", comment: "")
+        //emailTextField.selectedTitle = NSLocalizedString("E-Mail", comment: "")
+        //nameTextField.selectedTitle = NSLocalizedString("Name", comment: "")
+        //passwordTextField.selectedTitle = NSLocalizedString("Password!", comment: "")
+        //repeatPasswordTextField.selectedTitle = NSLocalizedString("Re-enter password!", comment: "")
+        
+        lblTerms.text = NSLocalizedString("TermsText", comment: "")
     }
 
     func setupFonts() {
-        nameTextField.font = Font.montserratRegular.get(size: 13)
+        //nameTextField.font = Font.montserratRegular.get(size: 13)
         emailTextField.font = Font.montserratRegular.get(size: 13)
         passwordTextField.font = Font.montserratRegular.get(size: 13)
         repeatPasswordTextField.font = Font.montserratRegular.get(size: 13)
         signupButton.titleLabel?.font = Font.montserratRegular.get(size: 15)
+        //birthDayTextField.font = Font.montserratRegular.get(size: 13)
     }
 
     // MARK: - Action's
@@ -129,16 +167,52 @@ open class SignupViewController: UIViewController, KeyboardMovable, BackgroundMo
     }
 
     @IBAction func didSelectSignup(_ sender: AnyObject) {
-        guard let email = emailTextField.text, let name = nameTextField.text, let password = passwordTextField.text else {
+        
+        
+        guard let email = emailTextField.text,
+            let password = passwordTextField.text
+            else {
             return
         }
-
         signupAttempted = true
-        validateFields {
-            delegate?.didSelectSignup(self, email: email, name: name, password: password)
+        if email == "" || password  == "" || password != repeatPasswordTextField.text {
+            //shake
+            if #available(iOS 10.0, *) {
+                let notification = UINotificationFeedbackGenerator()
+                notification.notificationOccurred(.error)
+            }
+            
+            if password != repeatPasswordTextField.text {
+                //show red borders of the passwords are not the same
+                repeatPasswordTextField.layer.borderColor = UIColor.red.cgColor
+                repeatPasswordTextField.layer.borderWidth = 1.0
+            }
+            
+            shake()
+        } else {
+            repeatPasswordTextField.layer.borderColor = UIColor.clear.cgColor
+            repeatPasswordTextField.layer.borderWidth = 0.0
+            
+            delegate?.didSelectSignup(self, email: email, name: "", password: password, gender: "", birthday: "")
         }
     }
+    @IBAction func didPressedTerms(_ sender: Any) {
+        delegate?.didPressedTerms(self)
+    }
+    @IBAction func didPressedPrivacy(_ sender: Any) {
+        delegate?.didPressedPrivacy(self)
+    }
+    
+    func textViewDidBeginEditing(_ textView: UITextView) {
 
+    }
+    
+    func shake(){
+        signupStackView.transform = CGAffineTransform(translationX: 20, y: 0)
+        UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.2, initialSpringVelocity: 1, options: .curveEaseInOut, animations: {
+            self.signupStackView.transform = CGAffineTransform.identity
+        }, completion: nil)
+    }
 }
 
 // MARK: - Validation
@@ -151,13 +225,15 @@ extension SignupViewController {
     }
 
     func setupValidation() {
-        setupValidationOn(field: nameTextField, rules: ValidationService.nameRules)
-        setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
+        //setupValidationOn(field: nameTextField, rules: ValidationService.nameRules)
+        //setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
+        //setupValidationOn(field: birthDayTextField, rules: ValidationService.birthRules)
+
 
         var passwordRules = ValidationService.passwordRules
-        setupValidationOn(field: passwordTextField, rules: passwordRules)
+        //setupValidationOn(field: passwordTextField, rules: passwordRules)
         passwordRules.add(rule: equalPasswordRule)
-        setupValidationOn(field: repeatPasswordTextField, rules: passwordRules)
+        //setupValidationOn(field: repeatPasswordTextField, rules: passwordRules)
     }
 
     func setupValidationOn(field: SkyFloatingLabelTextField, rules: ValidationRuleSet<String>) {
@@ -203,6 +279,22 @@ extension SignupViewController {
             success()
         }
     }
+    
+    @objc func keyboardWillShowNotification(_ notification: Notification) {
+        UIView.animate(withDuration: 5.0) {
+            self.logoImageView.alpha = 0.0
+            self.stackViewCenterConstraint.constant = -180
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc func keyboardWillHideNotification(_ notification: Notification) {
+        UIView.animate(withDuration: 5.0) {
+            self.logoImageView.alpha = 1.0
+            self.stackViewCenterConstraint.constant = 0
+            self.view.layoutIfNeeded()
+        }
+    }
 
 }
 
@@ -210,27 +302,61 @@ extension SignupViewController {
 
 extension SignupViewController : UITextFieldDelegate {
 
-    public func textFieldDidBeginEditing(_ textField: UITextField) {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
         selectedField = textField
+        
+        if (selectedField?.placeholder == NSLocalizedString("Birthday", comment: "")){
+            let datePickerView = UIDatePicker()
+            datePickerView.datePickerMode = .date
+            selectedField?.inputView = datePickerView
+            datePickerView.addTarget(self, action: #selector(SignupViewController.setDate(sender:)), for: .valueChanged)
+        }
+        
+        addAccessoryView(textField)
     }
-
-    public func textFieldDidEndEditing(_ textField: UITextField) {
+    
+    func addAccessoryView(_ textField: UITextField) -> Void {
+        let toolBar = UIToolbar(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 44))
+        let doneButton = UIBarButtonItem(title: NSLocalizedString("Close", comment: ""), style: .done, target: self, action: #selector(SignupViewController.doneButtonTapped(button:)))
+        let flexItem = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
+        toolBar.items = [flexItem, doneButton]
+        toolBar.tintColor = .black
+        textField.inputAccessoryView = toolBar
+    }
+    
+    @objc func doneButtonTapped(button:UIBarButtonItem) -> Void {
+        // do you stuff with done here
+        selectedField?.resignFirstResponder()
         selectedField = nil
     }
 
-    public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-		textField.resignFirstResponder()
+    func textFieldDidEndEditing(_ textField: UITextField) {
+        selectedField = nil
+    }
 
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         let nextTag = textField.tag + 1
         let nextResponder = view.viewWithTag(nextTag) as UIResponder!
 
         if nextResponder != nil {
             nextResponder?.becomeFirstResponder()
         } else {
-            didSelectSignup(self)
+            textField.resignFirstResponder()
+            //didSelectSignup(self)
         }
         
         return false
+    }
+    
+    @objc func setDate(sender: UIDatePicker){
+        self.birthDayTextField.text = formatDate(date: sender.date)
+    }
+    
+    func formatDate(date: Date) -> String{
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd-MM-yyyy"
+        let birthDay = formatter.string(from: date)
+        return birthDay
     }
     
 }

@@ -69,8 +69,7 @@ open class SkyFloatingLabelTextField: UITextField {
         if let
             placeholder = self.placeholder,
             let font = self.placeholderFont ?? self.font {
-                self.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [NSAttributedStringKey.foregroundColor:placeholderColor,
-                    NSAttributedStringKey.font: font])
+            self.attributedPlaceholder = NSAttributedString(string: placeholder, attributes: [NSAttributedStringKey.foregroundColor:placeholderColor, NSAttributedStringKey.font: font])
         }
     }
 
@@ -551,7 +550,7 @@ open class SkyFloatingLabelTextField: UITextField {
     /// Invoked by layoutIfNeeded automatically
     override open func layoutSubviews() {
         super.layoutSubviews()
-
+        
         self.titleLabel.frame = self.titleLabelRectForBounds(self.bounds, editing: self.isTitleVisible() || _renderingInInterfaceBuilder)
         self.lineView.frame = self.lineViewRectForBounds(self.bounds, editing: self.editingOrSelected || _renderingInInterfaceBuilder)
     }

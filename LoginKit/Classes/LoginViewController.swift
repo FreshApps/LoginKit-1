@@ -9,23 +9,24 @@
 import UIKit
 import Validator
 
-public protocol LoginViewControllerDelegate: AnyObject {
+protocol LoginViewControllerDelegate: class {
 
     func didSelectLogin(_ viewController: UIViewController, email: String, password: String)
+
     func didSelectForgotPassword(_ viewController: UIViewController)
+
     func loginDidSelectBack(_ viewController: UIViewController)
 
 }
 
-open class LoginViewController: UIViewController, BackgroundMovable, KeyboardMovable {
+
+class LoginViewController: UIViewController, BackgroundMovable, KeyboardMovable {
 
     // MARK: - Properties
 
-    public weak var delegate: LoginViewControllerDelegate?
+    weak var delegate: LoginViewControllerDelegate?
 
-	public lazy var configuration: ConfigurationSource = {
-		return DefaultConfiguration()
-	}()
+    weak var configurationSource: ConfigurationSource?
 
     var loginAttempted = false
 
@@ -48,67 +49,72 @@ open class LoginViewController: UIViewController, BackgroundMovable, KeyboardMov
     // MARK: Outlet's
 
     @IBOutlet var fields: Array<SkyFloatingLabelTextField> = []
-    @IBOutlet weak var emailTextField: SkyFloatingLabelTextField!
-    @IBOutlet weak var passwordTextField: SkyFloatingLabelTextField!
+    @IBOutlet weak var emailTextField: UITextField!
+    @IBOutlet weak var passwordTextField: UITextField!
     @IBOutlet weak var loginButton: UIButton!
     @IBOutlet weak var logoImageView: UIImageView!
     @IBOutlet weak var backgroundImageView: GradientImageView!
     @IBOutlet weak var forgotPasswordButton: UIButton!
     @IBOutlet weak var stackViewHeight: NSLayoutConstraint!
-
+    @IBOutlet weak var stackLeadingConstraint: NSLayoutConstraint!
+    @IBOutlet weak var loginStackView : UIStackView!
     // MARK: - UIViewController
 
-	override open func viewDidLoad() {
+    override func viewDidLoad() {
         super.viewDidLoad()
-		_ = loadFonts
+        
         setupValidation()
         initKeyboardMover()
         initBackgroundMover()
         customizeAppearance()
+        
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillShowNotification(_:)), name: NSNotification.Name.UIKeyboardWillShow, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(self.keyboardWillHideNotification(_:)), name: NSNotification.Name.UIKeyboardWillHide, object: nil)
     }
 
-	override open func loadView() {
-        self.view = viewFromNib(optionalName: "LoginViewController")
+    override func loadView() {
+        self.view = viewFromNib()
     }
 
-	override open func didReceiveMemoryWarning() {
+    override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
     }
 
-	override open func viewWillDisappear(_ animated: Bool) {
+    override func viewWillDisappear(_ animated: Bool) {
         super.viewWillDisappear(animated)
         destroyKeyboardMover()
     }
 
-	override open var preferredStatusBarStyle: UIStatusBarStyle {
+    override var preferredStatusBarStyle: UIStatusBarStyle {
         return .lightContent
     }
 
     // MARK: - Setup
 
     func customizeAppearance() {
-        applyConfiguration()
+        configureFromSource()
         setupFonts()
     }
 
-    func applyConfiguration() {
-        backgroundImageView.image = configuration.backgroundImage
-		backgroundImageView.gradientType = configuration.backgroundImageGradient ? .normalGradient : .none
-        backgroundImageView.gradientColor = configuration.tintColor
-        backgroundImageView.fadeColor = configuration.tintColor
-        logoImageView.image = configuration.secondaryLogoImage
+    func configureFromSource() {
+        guard let config = configurationSource else {
+            return
+        }
 
-        emailTextField.placeholder = configuration.emailPlaceholder
-        emailTextField.errorColor = configuration.errorTintColor
-        passwordTextField.placeholder = configuration.passwordPlaceholder
-        passwordTextField.errorColor = configuration.errorTintColor
+        backgroundImageView.image = config.backgroundImage
+        logoImageView.image = config.secondaryLogoImage
 
-        loginButton.setTitle(configuration.loginButtonText, for: .normal)
-        loginButton.setTitleColor(configuration.tintColor, for: .normal)
-        forgotPasswordButton.isHidden = !configuration.shouldShowForgotPassword
-        forgotPasswordButton.setTitle(configuration.forgotPasswordButtonText, for: .normal)
+        emailTextField.placeholder = config.emailPlaceholder
+        //emailTextField.errorColor = config.errorTintColor
+        passwordTextField.placeholder = config.passwordPlaceholder
+        //passwordTextField.errorColor = config.errorTintColor
 
-        stackViewHeight.constant = configuration.shouldShowForgotPassword ? 200 : 125
+        loginButton.setTitle(config.loginButtonText, for: .normal)
+        loginButton.setTitleColor(config.tintColor, for: .normal)
+        forgotPasswordButton.isHidden = !config.shouldShowForgotPassword
+        forgotPasswordButton.setTitle(config.forgotPasswordButtonText, for: .normal)
+
+        //stackViewHeight.constant = config.shouldShowForgotPassword ? 200 : 125
     }
 
     func setupFonts() {
@@ -121,6 +127,7 @@ open class LoginViewController: UIViewController, BackgroundMovable, KeyboardMov
     // MARK: - Action's
 
     @IBAction func didSelectBack(_ sender: AnyObject) {
+        selectedField?.resignFirstResponder()
         delegate?.loginDidSelectBack(self)
     }
 
@@ -128,14 +135,34 @@ open class LoginViewController: UIViewController, BackgroundMovable, KeyboardMov
         guard let email = emailTextField.text, let password = passwordTextField.text else {
             return
         }
+        
         loginAttempted = true
-        validateFields {
+        if email == "" || password  == "" {
+            //shake
+            if #available(iOS 10.0, *) {
+                let notification = UINotificationFeedbackGenerator()
+                notification.notificationOccurred(.error)
+            }
+            
+            shake()
+        } else {
             delegate?.didSelectLogin(self, email: email, password: password)
         }
+
+//        validateFields {
+//            delegate?.didSelectLogin(self, email: email, password: password)
+//        }
     }
 
     @IBAction func didSelectForgotPassword(_ sender: AnyObject) {
         delegate?.didSelectForgotPassword(self)
+    }
+    
+    func shake(){
+        loginStackView.transform = CGAffineTransform(translationX: 20, y: 0)
+        UIView.animate(withDuration: 0.4, delay: 0, usingSpringWithDamping: 0.2, initialSpringVelocity: 1, options: .curveEaseInOut, animations: {
+            self.loginStackView.transform = CGAffineTransform.identity
+        }, completion: nil)
     }
 
 }
@@ -145,8 +172,8 @@ open class LoginViewController: UIViewController, BackgroundMovable, KeyboardMov
 extension LoginViewController {
 
     func setupValidation() {
-        setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
-        setupValidationOn(field: passwordTextField, rules: ValidationService.passwordRules)
+        //setupValidationOn(field: emailTextField, rules: ValidationService.emailRules)
+        //setupValidationOn(field: passwordTextField, rules: ValidationService.passwordRules)
     }
 
     func setupValidationOn(field: SkyFloatingLabelTextField, rules: ValidationRuleSet<String>) {
@@ -199,27 +226,62 @@ extension LoginViewController {
 
 extension LoginViewController : UITextFieldDelegate {
 
-	public func textFieldDidBeginEditing(_ textField: UITextField) {
+    func textFieldDidBeginEditing(_ textField: UITextField) {
         selectedField = textField
+        addAccessoryView(selectedField!)
     }
 
-	public func textFieldDidEndEditing(_ textField: UITextField) {
+    func textFieldDidEndEditing(_ textField: UITextField) {
         selectedField = nil
     }
 
-	public func textFieldShouldReturn(_ textField: UITextField) -> Bool {
-		textField.resignFirstResponder()
-
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
         let nextTag = textField.tag + 1
-        let nextResponder = view.viewWithTag(nextTag) as UIResponder!
+        let nextResponder = view.viewWithTag(nextTag)
 
         if nextResponder != nil {
             nextResponder?.becomeFirstResponder()
         } else {
-            didSelectLogin(self)
+            textField.resignFirstResponder()
+            //didSelectLogin(self)
         }
         
         return false
+    }
+    
+    func addAccessoryView(_ textField: UITextField) -> Void {
+        let toolBar = UIToolbar(frame: CGRect(x: 0, y: 0, width: self.view.frame.size.width, height: 44))
+        let doneButton = UIBarButtonItem(title: NSLocalizedString("Close", comment: ""), style: .done, target: self, action: #selector(LoginViewController.doneButtonTapped(button:)))
+        let flexItem = UIBarButtonItem(barButtonSystemItem: .flexibleSpace, target: self, action: nil)
+        toolBar.items = [flexItem, doneButton]
+        toolBar.tintColor = .black
+        textField.inputAccessoryView = toolBar
+    }
+    
+    @objc func doneButtonTapped(button:UIBarButtonItem) -> Void {
+        // do you stuff with done here
+        selectedField?.resignFirstResponder()
+        selectedField = nil
+    }
+    
+    @objc func keyboardWillShowNotification(_ notification: Notification) {
+        UIView.animate(withDuration: 5.0) {
+            self.logoImageView.alpha = 0.0
+            
+            if (self.stackLeadingConstraint.constant == 0.0){
+                self.stackLeadingConstraint.constant = -125
+            }
+            
+            self.view.layoutIfNeeded()
+        }
+    }
+    
+    @objc func keyboardWillHideNotification(_ notification: Notification) {
+        UIView.animate(withDuration: 5.0) {
+            self.logoImageView.alpha = 1.0
+            self.stackLeadingConstraint.constant = 0
+            self.view.layoutIfNeeded()
+        }
     }
     
 }
